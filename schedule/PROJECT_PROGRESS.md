@@ -1,5 +1,25 @@
 # VideoNote Forge 專案進度
 
+## 2026-07-14：自動修正與內文標記
+
+- 生成後固定執行一輪自動修正：處理空章節、過度推論、術語錯誤、遺漏重點與 Markdown 格式。
+- 不進行循環改寫；修正後再執行 validation，保存最終品質結果。
+- 只有無法從逐字稿確定的矛盾才會在相關正文旁加入 `需要人工確認` callout，不再產生 checkbox 清單或頂部總表。
+- 移除前端「檢查筆記」按鈕；使用者直接在 Editor 修改最終筆記。
+
+## 2026-07-14：知識網站入口
+
+- 保留「發布知識網站」自動發布功能。
+- 在前端操作列新增「查看知識網站」，以新分頁開啟 Quartz GitHub Pages。
+- 明確定義「檢查筆記」只重新驗證目前 Markdown 並更新人工檢查 callout，不改寫正文。
+
+## 2026-07-14：個人網站作品集更新
+
+- `personal_website/project_page.html` 移除原本最後兩個舊專案，合併替換為 VideoNote 專案。
+- VideoNote 專案卡說明完整的轉錄、Markdown、validation、Obsidian Vault 與 Quartz 發布流程。
+- 新增 Demo、GitHub、Note 三個按鈕；Demo 已連到 `video_note.html`，其餘保留待填連結。
+- 新增符合網站風格的 `images/video-note-project.svg` 專案視覺。
+
 ## 2026-07-14：Markdown 人工檢查標記
 
 - Validation 發現的 unsupported claims、疑似轉錄錯誤、遺漏重點與格式問題，現在會寫入 Markdown 頂部的 Obsidian warning callout。

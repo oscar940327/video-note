@@ -34,6 +34,7 @@ tags: [test]
 Technical content.
 """
     monkeypatch.setattr("videonote.pipeline.generate_note", lambda *args: note)
+    monkeypatch.setattr("videonote.pipeline.repair_note", lambda *args: note)
     monkeypatch.setattr("videonote.pipeline.validate_grounding", lambda *args: {
         "supported_claims": ["Technical content"], "unsupported_claims": [],
         "missing_key_points": [], "possible_transcription_errors": [], "overall_score": 95,

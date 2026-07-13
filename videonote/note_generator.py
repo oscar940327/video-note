@@ -41,6 +41,22 @@ def generate_note(
     return result["markdown"].strip() + "\n"
 
 
+def repair_note(
+    client: OpenRouterClient,
+    markdown: str,
+    transcript_context: str,
+) -> str:
+    """Run one bounded review pass that fixes safe issues and marks only ambiguity."""
+    result = client.structured(
+        name="repaired_video_note",
+        schema=MARKDOWN_SCHEMA,
+        instructions=load_prompt("repair_note.md"),
+        input_text=f"CURRENT NOTE\n{markdown}\n\nTRANSCRIPT\n{transcript_context}",
+        max_output_tokens=20000,
+    )
+    return result["markdown"].strip() + "\n"
+
+
 def regenerate_section(
     client: OpenRouterClient,
     markdown: str,

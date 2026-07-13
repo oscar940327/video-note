@@ -9,9 +9,9 @@ from typing import Callable
 from .config import Settings, settings
 from .llm_service import OpenRouterClient, chunks_as_context
 from .models import Transcript
-from .note_generator import generate_note
+from .note_generator import generate_note, repair_note
 from .note_planner import plan_note
-from .note_validator import annotate_review_items, format_validation, validate_grounding
+from .note_validator import format_validation, validate_grounding
 from .subtitle_service import download_subtitle, parse_subtitle
 from .transcript_processor import chunk_segments, clean_segments
 from .transcription_service import transcribe_audio
@@ -131,12 +131,14 @@ def run_pipeline(
     note_path = job_dir / f"{safe_name(plan.get('title') or video.title)}.md"
     atomic_write_text(note_path, markdown)
 
-    progress("validation", 90, "Validating format and transcript grounding")
+    progress("validation", 88, "Automatically repairing note issues")
+    markdown = repair_note(client, markdown, context)
+    atomic_write_text(note_path, markdown)
+
+    progress("validation", 95, "Validating the repaired note")
     validation = format_validation(markdown)
     validation["grounding"] = validate_grounding(client, markdown, context)
     write_json(job_dir / "validation.json", validation)
-    markdown = annotate_review_items(markdown, validation)
-    atomic_write_text(note_path, markdown)
 
     progress("complete", 100, "Note is ready for review")
     return PipelineResult(
