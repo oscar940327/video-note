@@ -1,0 +1,8 @@
+faster-whisper>=1.2.1
+yt-dlp>=2026.6.30
+ctranslate2>=4.6.0
+fastapi>=0.116.0
+uvicorn[standard]>=0.35.0
+httpx>=0.28.0
+PyYAML>=6.0.2
+pytest>=8.4.0
