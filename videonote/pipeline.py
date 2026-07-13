@@ -11,7 +11,7 @@ from .llm_service import OpenRouterClient, chunks_as_context
 from .models import Transcript
 from .note_generator import generate_note
 from .note_planner import plan_note
-from .note_validator import format_validation, validate_grounding
+from .note_validator import annotate_review_items, format_validation, validate_grounding
 from .subtitle_service import download_subtitle, parse_subtitle
 from .transcript_processor import chunk_segments, clean_segments
 from .transcription_service import transcribe_audio
@@ -135,6 +135,8 @@ def run_pipeline(
     validation = format_validation(markdown)
     validation["grounding"] = validate_grounding(client, markdown, context)
     write_json(job_dir / "validation.json", validation)
+    markdown = annotate_review_items(markdown, validation)
+    atomic_write_text(note_path, markdown)
 
     progress("complete", 100, "Note is ready for review")
     return PipelineResult(

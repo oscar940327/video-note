@@ -1,5 +1,12 @@
 # VideoNote Forge 專案進度
 
+## 2026-07-14：Markdown 人工檢查標記
+
+- Validation 發現的 unsupported claims、疑似轉錄錯誤、遺漏重點與格式問題，現在會寫入 Markdown 頂部的 Obsidian warning callout。
+- Grounding prompt 會要求提供章節、可搜尋的原文摘錄、時間戳與原因，避免只顯示模糊警告。
+- 重新按「檢查筆記」會取代舊標記並同步更新 Editor／Preview，不會重複累積。
+- 修正 H1 文件標題被誤判為空章節的問題；完整測試結果為 23 passed。
+
 ## 2026-07-14：Quartz 前端穩定化
 
 - 確認 `note-garden` 前端由 Quartz v5 與社群外掛提供，筆記內容位於 `content/`。

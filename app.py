@@ -14,7 +14,7 @@ from videonote.llm_service import (
     OpenRouterClient,
 )
 from videonote.note_generator import regenerate_section
-from videonote.note_validator import format_validation, validate_grounding
+from videonote.note_validator import annotate_review_items, format_validation, validate_grounding
 from videonote.pipeline import PipelineOptions
 from videonote.vault_service import VaultError, classify_note, publish_note, save_note
 
@@ -123,6 +123,7 @@ def validate(request: ValidateRequest) -> dict:
             )
         except (LLMConfigurationError, LLMResponseError) as error:
             raise HTTPException(503, str(error)) from error
+    result["annotated_markdown"] = annotate_review_items(request.markdown, result)
     return result
 
 

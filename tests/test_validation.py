@@ -1,4 +1,4 @@
-from videonote.note_validator import format_validation
+from videonote.note_validator import annotate_review_items, format_validation
 
 
 VALID_NOTE = """---
@@ -38,3 +38,26 @@ def test_unbalanced_fence_fails():
 def test_duplicate_heading_warns():
     result = format_validation(VALID_NOTE + "\n## Summary\n\nAgain.\n")
     assert any("Duplicate headings" in warning for warning in result["warnings"])
+
+
+def test_review_items_are_written_into_markdown_once():
+    validation = {
+        "passed": True,
+        "errors": [],
+        "warnings": [],
+        "grounding": {
+            "unsupported_claims": ["〈Summary〉「Technical content」— transcript does not support this detail"],
+            "missing_key_points": ["[00:00:03] Missing deployment warning"],
+            "possible_transcription_errors": ["[00:00:02] \"agent\" — may be \"agents\""],
+        },
+    }
+
+    annotated = annotate_review_items(VALID_NOTE, validation)
+    assert "[!warning] 需要人工檢查" in annotated
+    assert "〈Summary〉「Technical content」" in annotated
+    assert "[00:00:02]" in annotated
+    assert annotated.index("需要人工檢查") < annotated.index("# Test")
+
+    updated = annotate_review_items(annotated, validation)
+    assert updated.count("VIDEONOTE_REVIEW_START") == 1
+    assert format_validation(updated)["passed"] is True
