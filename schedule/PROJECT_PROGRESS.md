@@ -1,5 +1,17 @@
 # VideoNote Forge 專案進度
 
+## 2026-07-14：Quartz 前端穩定化
+
+- 確認 `note-garden` 前端由 Quartz v5 與社群外掛提供，筆記內容位於 `content/`。
+- 關閉 SPA 導覽，避免社群元件在換頁時重複初始化或未完整清除動畫。
+- 停用 Graph；它會載入 D3／PixiJS 並持續執行 Canvas animation frame。
+- 停用目前未使用的 Encrypted Pages、Canvas、Bases 與 Excalidraw。
+- 停用 Quartz Themes 的大型 Obsidian CSS 層，改回 Quartz 原生主題設定。
+- 加入 `prefers-reduced-motion` 與受控的短 transition，改善低效能裝置與無障礙體驗。
+- Quartz build 成功：6 個 Markdown 輸入、69 個輸出檔案。
+- Quartz `npm run check` 通過，測試結果為 109 passed、0 failed。
+- 最大主題 CSS 從約 405.7 KB 移除；建置結果不再包含 Graph、D3、PixiJS、Canvas、Excalidraw 或加密頁面資源。
+
 > 目前交付範圍：`URL → Transcript → Structured Note → Review → Download`。
 >
 > 暫緩範圍：Obsidian Vault 寫入、GitHub／Quartz 發布。
