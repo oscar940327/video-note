@@ -8,10 +8,11 @@ from typing import Callable
 
 from .config import Settings, settings
 from .llm_service import OpenRouterClient, chunks_as_context
+from .markdown_formatter import normalize_markdown
 from .models import Transcript
-from .note_generator import generate_note, repair_note
-from .note_planner import plan_note
-from .note_validator import format_validation, validate_grounding
+from .note_generator import generate_note_with_plan, rewrite_critical_section
+from .note_reviewer import apply_safe_review_edits, find_section, replace_section, review_note
+from .note_validator import format_validation
 from .subtitle_service import download_subtitle, parse_subtitle
 from .transcript_processor import chunk_segments, clean_segments
 from .transcription_service import transcribe_audio
@@ -120,24 +121,40 @@ def run_pipeline(
     context = chunks_as_context(chunks, client, app_settings.max_llm_context_chars)
     atomic_write_text(job_dir / "transcript.context.txt", context)
 
-    progress("planning", 69, "Planning note sections")
-    plan = plan_note(client, video, context, options.output_language)
-    write_json(job_dir / "note-plan.json", plan)
-
-    progress("generation", 78, "Generating structured Markdown")
-    markdown = generate_note(
-        client, video, plan, context, options.output_language, options.note_style, options.grounding_mode
+    progress("planning", 69, "Planning and generating the complete note")
+    plan, markdown = generate_note_with_plan(
+        client, video, context, options.output_language, options.note_style, options.grounding_mode
     )
+    write_json(job_dir / "note-plan.json", plan)
     note_path = job_dir / f"{safe_name(plan.get('title') or video.title)}.md"
     atomic_write_text(note_path, markdown)
 
-    progress("validation", 88, "Automatically repairing note issues")
-    markdown = repair_note(client, markdown, context)
-    atomic_write_text(note_path, markdown)
+    progress("validation", 86, "Independently reviewing content")
+    review = review_note(client, markdown, context)
+    markdown, edit_stats = apply_safe_review_edits(markdown, review)
 
-    progress("validation", 95, "Validating the repaired note")
+    rewritten_sections = 0
+    for issue in review.get("critical_sections", [])[:3]:
+        heading = str(issue.get("heading", "")).strip()
+        found = find_section(markdown, heading)
+        if not found:
+            continue
+        progress("validation", 90, f"Repairing critical section: {heading}")
+        repaired = rewrite_critical_section(client, found[2], issue, context)
+        markdown, replaced = replace_section(markdown, heading, repaired)
+        rewritten_sections += int(replaced)
+
+    progress("validation", 95, "Applying deterministic Markdown checks")
+    markdown = normalize_markdown(markdown, video, plan, language, options.output_language)
+    atomic_write_text(note_path, markdown)
     validation = format_validation(markdown)
-    validation["grounding"] = validate_grounding(client, markdown, context)
+    validation["review"] = {
+        "summary": review.get("summary", ""),
+        "safe_edits_applied": edit_stats["applied"],
+        "safe_edits_skipped": edit_stats["skipped"],
+        "critical_sections_rewritten": rewritten_sections,
+        "ambiguities_marked": len(review.get("ambiguities", [])),
+    }
     write_json(job_dir / "validation.json", validation)
 
     progress("complete", 100, "Note is ready for review")

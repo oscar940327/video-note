@@ -6,6 +6,7 @@ from typing import Any
 
 from .llm_service import OpenRouterClient, load_prompt
 from .models import VideoInfo
+from .note_planner import NOTE_PLAN_SCHEMA
 
 
 MARKDOWN_SCHEMA = {
@@ -15,46 +16,40 @@ MARKDOWN_SCHEMA = {
     "additionalProperties": False,
 }
 
+GENERATED_NOTE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "plan": NOTE_PLAN_SCHEMA,
+        "markdown": {"type": "string"},
+    },
+    "required": ["plan", "markdown"],
+    "additionalProperties": False,
+}
 
-def generate_note(
+
+def generate_note_with_plan(
     client: OpenRouterClient,
     video: VideoInfo,
-    plan: dict[str, Any],
     transcript_context: str,
     output_language: str,
     note_style: str,
     grounding_mode: str,
-) -> str:
+) -> tuple[dict[str, Any], str]:
+    """Plan and write the complete note in one high-quality model call."""
     result = client.structured(
-        name="generated_video_note",
-        schema=MARKDOWN_SCHEMA,
-        instructions=load_prompt("generate_note.md"),
+        name="planned_generated_video_note",
+        schema=GENERATED_NOTE_SCHEMA,
+        instructions=load_prompt("generate_note_with_plan.md"),
         input_text=(
             f"Today's date: {date.today().isoformat()}\nOutput language: {output_language}\n"
             f"Note style: {note_style}\nGrounding mode: {grounding_mode}\n"
-            f"Video metadata: {json.dumps(video.to_dict(), ensure_ascii=False)}\n"
-            f"Approved note plan: {json.dumps(plan, ensure_ascii=False)}\n\n"
-            f"TRANSCRIPT OR GROUNDED CHUNK SUMMARIES\n{transcript_context}"
+            f"Video metadata: {json.dumps(video.to_dict(), ensure_ascii=False)}\n\n"
+            f"TRANSCRIPT OR LOSS-RESISTANT TRANSCRIPT CONTEXT\n{transcript_context}"
         ),
         max_output_tokens=20000,
+        model=client.settings.openrouter_model,
     )
-    return result["markdown"].strip() + "\n"
-
-
-def repair_note(
-    client: OpenRouterClient,
-    markdown: str,
-    transcript_context: str,
-) -> str:
-    """Run one bounded review pass that fixes safe issues and marks only ambiguity."""
-    result = client.structured(
-        name="repaired_video_note",
-        schema=MARKDOWN_SCHEMA,
-        instructions=load_prompt("repair_note.md"),
-        input_text=f"CURRENT NOTE\n{markdown}\n\nTRANSCRIPT\n{transcript_context}",
-        max_output_tokens=20000,
-    )
-    return result["markdown"].strip() + "\n"
+    return result["plan"], result["markdown"].strip() + "\n"
 
 
 def regenerate_section(
@@ -81,5 +76,37 @@ def regenerate_section(
             f"CURRENT NOTE\n{markdown}\n\nTRANSCRIPT\n{transcript_context}"
         ),
         max_output_tokens=5000,
+        model=client.settings.openrouter_model,
+    )
+    return result["section_markdown"].strip()
+
+
+def rewrite_critical_section(
+    client: OpenRouterClient,
+    section_markdown: str,
+    issue: dict[str, Any],
+    transcript_context: str,
+) -> str:
+    """Use the generation model only for a reviewer-confirmed major section problem."""
+    result = client.structured(
+        name="rewritten_critical_section",
+        schema={
+            "type": "object",
+            "properties": {"section_markdown": {"type": "string"}},
+            "required": ["section_markdown"],
+            "additionalProperties": False,
+        },
+        instructions=(
+            "Repair only the supplied Markdown section for the confirmed major issue. Preserve its heading, useful "
+            "supported content, detail level, timestamps, callouts, and writing style. Add or correct only what the "
+            "transcript supports. Do not return any other section or commentary."
+        ),
+        input_text=(
+            f"REVIEW FINDING\n{json.dumps(issue, ensure_ascii=False)}\n\n"
+            f"SECTION TO REPAIR\n{section_markdown}\n\n"
+            f"TRANSCRIPT CONTEXT\n{transcript_context}"
+        ),
+        max_output_tokens=8000,
+        model=client.settings.openrouter_model,
     )
     return result["section_markdown"].strip()

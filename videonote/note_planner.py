@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
-from .llm_service import OpenRouterClient, load_prompt
-from .models import VideoInfo
-
-
 SECTION_NAMES = [
     "summary", "why", "core_concepts", "architecture", "components", "workflow",
     "example", "minimal_code", "pros_cons", "comparison", "real_world_use",
@@ -30,22 +24,3 @@ NOTE_PLAN_SCHEMA = {
     "required": ["title", "video_type", "main_topic", "source_language", "tags", "sections"],
     "additionalProperties": False,
 }
-
-
-def plan_note(
-    client: OpenRouterClient,
-    video: VideoInfo,
-    transcript_context: str,
-    output_language: str,
-) -> dict[str, Any]:
-    return client.structured(
-        name="video_note_plan",
-        schema=NOTE_PLAN_SCHEMA,
-        instructions=load_prompt("analyze_video.md"),
-        input_text=(
-            f"Output language: {output_language}\n"
-            f"Video title: {video.title}\nPlatform: {video.platform}\nSource URL: {video.webpage_url}\n\n"
-            f"TRANSCRIPT\n{transcript_context}"
-        ),
-        max_output_tokens=2500,
-    )

@@ -1,4 +1,5 @@
-from videonote.note_generator import repair_note
+from videonote.models import VideoInfo
+from videonote.note_generator import generate_note_with_plan
 
 
 class FakeClient:
@@ -7,15 +8,23 @@ class FakeClient:
 
     def structured(self, **kwargs):
         self.request = kwargs
-        return {"markdown": "# Repaired\n\nSupported content."}
+        return {
+            "plan": {"title": "Planned", "sections": {}},
+            "markdown": "# Planned\n\nSupported content.",
+        }
 
 
-def test_repair_note_runs_one_bounded_markdown_pass():
+def test_generation_combines_plan_and_complete_note():
     client = FakeClient()
+    client.settings = type("Settings", (), {"openrouter_model": "generation-model"})()
+    video = VideoInfo("url", "id", "Video", "youtube")
 
-    result = repair_note(client, "# Draft\n", "[00:00] Transcript")
+    plan, markdown = generate_note_with_plan(
+        client, video, "[00:00] Transcript", "zh-TW", "standard", "assisted"
+    )
 
-    assert result == "# Repaired\n\nSupported content.\n"
-    assert client.request["name"] == "repaired_video_note"
-    assert "CURRENT NOTE\n# Draft" in client.request["input_text"]
-    assert "TRANSCRIPT\n[00:00] Transcript" in client.request["input_text"]
+    assert plan["title"] == "Planned"
+    assert markdown == "# Planned\n\nSupported content.\n"
+    assert client.request["name"] == "planned_generated_video_note"
+    assert client.request["max_output_tokens"] == 20000
+    assert client.request["model"] == "generation-model"

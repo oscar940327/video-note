@@ -31,6 +31,9 @@ class Settings:
     openrouter_site_url: str
     openrouter_app_title: str
     max_llm_context_chars: int
+    context_model: str = "qwen/qwen3.5-flash"
+    review_model: str = "deepseek/deepseek-v4-flash"
+    classification_model: str = "qwen/qwen3.5-9b"
     vault_path: Path | None = None
     vault_auto_create_folders: bool = True
 
@@ -41,11 +44,18 @@ class Settings:
         return cls(
             data_dir=Path(os.getenv("VIDEONOTE_DATA_DIR", ROOT_DIR / "data")).resolve(),
             openrouter_api_key=os.getenv("OPENROUTER_API_KEY") or None,
-            openrouter_model=os.getenv("OPENROUTER_MODEL", "~google/gemini-flash-latest"),
+            openrouter_model=(
+                os.getenv("OPENROUTER_GENERATION_MODEL")
+                or os.getenv("OPENROUTER_MODEL")
+                or "openai/gpt-5.6-luna-pro"
+            ),
             openrouter_base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/"),
             openrouter_site_url=os.getenv("OPENROUTER_SITE_URL", "http://127.0.0.1:4173"),
             openrouter_app_title=os.getenv("OPENROUTER_APP_TITLE", "VideoNote Forge"),
             max_llm_context_chars=int(os.getenv("MAX_LLM_CONTEXT_CHARS", "120000")),
+            context_model=os.getenv("OPENROUTER_CONTEXT_MODEL", "qwen/qwen3.5-flash"),
+            review_model=os.getenv("OPENROUTER_REVIEW_MODEL", "deepseek/deepseek-v4-flash"),
+            classification_model=os.getenv("OPENROUTER_CLASSIFICATION_MODEL", "qwen/qwen3.5-9b"),
             vault_path=Path(vault_value).resolve() if vault_value else None,
             vault_auto_create_folders=os.getenv("VIDEONOTE_VAULT_AUTO_CREATE_FOLDERS", "true").lower()
             in {"1", "true", "yes", "on"},

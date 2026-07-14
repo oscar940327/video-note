@@ -24,8 +24,14 @@ Copy-Item .env.example .env
 
 ```dotenv
 OPENROUTER_API_KEY=你的_API_Key
+OPENROUTER_GENERATION_MODEL=openai/gpt-5.6-luna-pro
+OPENROUTER_CONTEXT_MODEL=qwen/qwen3.5-flash
+OPENROUTER_REVIEW_MODEL=deepseek/deepseek-v4-flash
+OPENROUTER_CLASSIFICATION_MODEL=qwen/qwen3.5-9b
 VIDEONOTE_VAULT_PATH=E:\toy project\note-garden\content
 ```
+
+模型分工固定如下：Qwen 整理超長逐字稿並分類 Vault；GPT-5.6 Luna Pro 在一次呼叫中完成規劃與完整文章；DeepSeek 獨立找錯並提出局部修改。只有重大章節問題才交回 GPT 局部重寫。完整文章輸出上限維持 20,000 tokens。
 
 `.env` 包含私密資料，不要提交到 Git。
 

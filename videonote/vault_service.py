@@ -70,9 +70,10 @@ def classify_note(
         instructions=load_prompt("vault_classifier.md"),
         input_text=(
             f"Existing folders: {folders or ['Inbox']}\n\n"
-            f"Classify this note:\n\n{markdown[:30000]}"
+            f"Classify this note:\n\n{markdown[:8000]}"
         ),
         max_output_tokens=500,
+        model=app_settings.classification_model,
     )
     confidence = float(result["confidence"])
     existing = {name.casefold(): name for name in folders}

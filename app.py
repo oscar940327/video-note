@@ -14,7 +14,7 @@ from videonote.llm_service import (
     OpenRouterClient,
 )
 from videonote.note_generator import regenerate_section
-from videonote.note_validator import annotate_review_items, format_validation, validate_grounding
+from videonote.note_validator import format_validation
 from videonote.pipeline import PipelineOptions
 from videonote.vault_service import VaultError, classify_note, publish_note, save_note
 
@@ -46,8 +46,6 @@ class CreateJobRequest(BaseModel):
 
 class ValidateRequest(BaseModel):
     markdown: str = Field(min_length=1)
-    job_id: str | None = None
-    include_grounding: bool = False
 
 
 class RegenerateRequest(BaseModel):
@@ -74,6 +72,12 @@ def health() -> dict:
         "llm_configured": bool(settings.openrouter_api_key),
         "provider": "openrouter",
         "model": settings.openrouter_model,
+        "models": {
+            "generation": settings.openrouter_model,
+            "context": settings.context_model,
+            "review": settings.review_model,
+            "classification": settings.classification_model,
+        },
         "vault_configured": bool(settings.vault_path),
         "vault_path": str(settings.vault_path) if settings.vault_path else None,
     }
@@ -107,24 +111,7 @@ def get_result(job_id: str) -> dict:
 
 @app.post("/api/validate")
 def validate(request: ValidateRequest) -> dict:
-    result = format_validation(request.markdown)
-    if request.include_grounding:
-        if not request.job_id:
-            raise HTTPException(400, "job_id is required for grounding validation")
-        job = job_manager.get(request.job_id)
-        if not job:
-            raise HTTPException(404, "Job not found")
-        context_path = job_manager.data_dir / request.job_id / "transcript.context.txt"
-        if not context_path.exists():
-            raise HTTPException(409, "Transcript context is not ready")
-        try:
-            result["grounding"] = validate_grounding(
-                OpenRouterClient(), request.markdown, context_path.read_text(encoding="utf-8")
-            )
-        except (LLMConfigurationError, LLMResponseError) as error:
-            raise HTTPException(503, str(error)) from error
-    result["annotated_markdown"] = annotate_review_items(request.markdown, result)
-    return result
+    return format_validation(request.markdown)
 
 
 @app.post("/api/regenerate-section")

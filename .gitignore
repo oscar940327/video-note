@@ -11,3 +11,4 @@ output/
 *.mp3
 *.webm
 *.wav
+/schedule

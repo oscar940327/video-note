@@ -53,13 +53,14 @@ class OpenRouterClient:
         instructions: str,
         input_text: str,
         max_output_tokens: int = 12000,
+        model: str | None = None,
     ) -> dict[str, Any]:
         if not self.settings.openrouter_api_key:
             raise LLMConfigurationError(
                 "OPENROUTER_API_KEY is missing. Copy .env.example to .env and add your OpenRouter API key."
             )
         payload = {
-            "model": self.settings.openrouter_model,
+            "model": model or self.settings.openrouter_model,
             "messages": [
                 {"role": "system", "content": instructions},
                 {"role": "user", "content": input_text},
@@ -132,6 +133,7 @@ def chunks_as_context(
             ),
             input_text=f"Time range: {timestamp(chunk.start)}–{timestamp(chunk.end)}\n\n{chunk.text}",
             max_output_tokens=1800,
+            model=client.settings.context_model,
         )
         points = "\n".join(f"- {item}" for item in result["key_points"])
         summaries.append(

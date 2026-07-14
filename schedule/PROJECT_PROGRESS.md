@@ -1,5 +1,13 @@
 # VideoNote Forge 專案進度
 
+## 2026-07-14：VideoNote 動畫系統
+
+- 參考 MktAgent 的 `type-reveal`、`card-border-reveal`、`card-content-reveal` 與 `pop-from-dot` 動畫語言。
+- 新增 Hero 依序進場、輸入卡描邊／內容 reveal、按鈕 pop、進度卡與工作區動態進場。
+- Progress bar 新增流動 sheen、目前步驟 pop；Editor／Preview 切換有短 reveal。
+- 動態出現的進度卡、結果工作區與狀態訊息可由 JavaScript 重播動畫。
+- 支援 `prefers-reduced-motion`，使用者偏好減少動態效果時自動停用長動畫。
+
 ## 2026-07-14：自動修正與內文標記
 
 - 生成後固定執行一輪自動修正：處理空章節、過度推論、術語錯誤、遺漏重點與 Markdown 格式。
@@ -137,3 +145,18 @@ Obsidian／Quartz 階段已開始實作：`note-garden/content` 設為公開 Vau
 3. 用一支有字幕影片與一支無字幕影片各跑一次完整流程。
 4. 確認 OpenRouter 帳號可使用 `.env` 設定的模型；若不可用，調整 `OPENROUTER_MODEL`。
 5. 根據真實筆記結果微調 prompts。
+
+## 2026-07-15：多模型與低重複 Token 管線
+
+- [x] Qwen3.5 Flash 只在逐字稿超過 context 字元門檻時做忠實分段整理。
+- [x] GPT-5.6 Luna Pro 將章節規劃與完整 Markdown 生成合併為單次呼叫。
+- [x] 完整文章 `max_output_tokens` 維持 20,000。
+- [x] DeepSeek V4 Flash 獨立比對筆記與逐字稿，只輸出精確局部修改、歧義標記與重大章節清單。
+- [x] 小修改只有在原文搜尋片段唯一匹配時才由 Python 套用，避免便宜模型重寫整篇文章。
+- [x] 真正重大且能定位到既有章節的問題，才由 GPT-5.6 Luna Pro 局部重寫該章節。
+- [x] Python 負責 Frontmatter 必填欄位、單一 H1、標題跳級、空章節及 code fence 等確定性修正。
+- [x] 移除 pipeline 的整篇 LLM repair 與後續整篇 grounding validation 重複流程。
+- [x] `/api/validate` 改為純本機 Markdown 格式檢查，不再觸發 LLM。
+- [x] Vault 分類改用 Qwen3.5 9B，且輸入上限由 30,000 字元縮至 8,000 字元。
+- [x] `.env.example`、README 與 `/api/health` 已反映四種模型角色。
+- [x] 自動化驗證：27 passed；僅保留既有 FastAPI/httpx2 棄用警告。

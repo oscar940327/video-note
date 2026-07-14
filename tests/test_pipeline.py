@@ -16,7 +16,6 @@ def test_pipeline_with_subtitles_and_mocked_llm(monkeypatch, tmp_path):
     monkeypatch.setattr("videonote.pipeline.get_video_info", lambda *args: (video, {"subtitles": {"en": [{}]}}))
     monkeypatch.setattr("videonote.pipeline.download_subtitle", lambda *args: (subtitle_path, "en", "manual_subtitle"))
     monkeypatch.setattr("videonote.pipeline.chunks_as_context", lambda chunks, client, max_chars: "[00:00] Technical content")
-    monkeypatch.setattr("videonote.pipeline.plan_note", lambda *args: {"title": "Test Note", "sections": {}})
     note = """---
 title: Test Note
 source: https://example.com/video
@@ -33,11 +32,12 @@ tags: [test]
 
 Technical content.
 """
-    monkeypatch.setattr("videonote.pipeline.generate_note", lambda *args: note)
-    monkeypatch.setattr("videonote.pipeline.repair_note", lambda *args: note)
-    monkeypatch.setattr("videonote.pipeline.validate_grounding", lambda *args: {
-        "supported_claims": ["Technical content"], "unsupported_claims": [],
-        "missing_key_points": [], "possible_transcription_errors": [], "overall_score": 95,
+    monkeypatch.setattr(
+        "videonote.pipeline.generate_note_with_plan",
+        lambda *args: ({"title": "Test Note", "tags": ["test"], "sections": {}}, note),
+    )
+    monkeypatch.setattr("videonote.pipeline.review_note", lambda *args: {
+        "safe_edits": [], "ambiguities": [], "critical_sections": [], "summary": "No issues",
     })
 
     events = []
@@ -50,8 +50,10 @@ Technical content.
         ),
     )
 
-    assert result.markdown == note
+    assert "# Test Note" in result.markdown
+    assert "Technical content." in result.markdown
     assert result.transcript["source"] == "manual_subtitle"
     assert result.validation["passed"] is True
+    assert result.validation["review"]["critical_sections_rewritten"] == 0
     assert Path(result.files["markdown"]).exists()
     assert events[-1] == ("complete", 100)
