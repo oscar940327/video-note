@@ -25,10 +25,11 @@ def _run(
     compute_type: str,
     duration: float | None,
     progress: ProgressCallback | None,
+    vad_filter: bool = True,
 ) -> tuple[list[TranscriptSegment], str]:
     model = WhisperModel(model_name, device=device, compute_type=compute_type)
     raw_segments, info = model.transcribe(
-        str(media_path), language=None, beam_size=5, vad_filter=True, condition_on_previous_text=True
+        str(media_path), language=None, beam_size=5, vad_filter=vad_filter, condition_on_previous_text=True
     )
     segments: list[TranscriptSegment] = []
     for item in raw_segments:
@@ -38,6 +39,47 @@ def _run(
         if progress:
             progress("Transcribing audio", min(1.0, item.end / duration) if duration else None)
     return segments, info.language
+
+
+def transcript_coverage(segments: list[TranscriptSegment], duration: float | None) -> float | None:
+    if not duration or duration <= 0 or not segments:
+        return None
+    return max(segment.end for segment in segments) / duration
+
+
+def _coverage_is_suspicious(segments: list[TranscriptSegment], duration: float | None) -> bool:
+    coverage = transcript_coverage(segments, duration)
+    if coverage is None or duration is None or duration < 180:
+        return False
+    last_end = max(segment.end for segment in segments)
+    return coverage < 0.65 and duration - last_end > 120
+
+
+def _run_with_coverage_check(
+    media_path: Path,
+    model_name: str,
+    device: str,
+    compute_type: str,
+    duration: float | None,
+    progress: ProgressCallback | None,
+) -> tuple[list[TranscriptSegment], str]:
+    segments, language = _run(
+        media_path, model_name, device, compute_type, duration, progress, vad_filter=True
+    )
+    if not _coverage_is_suspicious(segments, duration):
+        return segments, language
+    if progress:
+        progress("Transcript ended far before the audio; retrying without VAD", None)
+    segments, language = _run(
+        media_path, model_name, device, compute_type, duration, progress, vad_filter=False
+    )
+    if _coverage_is_suspicious(segments, duration):
+        coverage = transcript_coverage(segments, duration) or 0
+        raise RuntimeError(
+            f"Transcription is incomplete: only {coverage:.1%} of the video timeline was covered. "
+            "The audio may be damaged or contain an unsupported discontinuity."
+        )
+    return segments, language
 
 
 def transcribe_audio(
@@ -50,7 +92,9 @@ def transcribe_audio(
 ) -> tuple[list[TranscriptSegment], str, str]:
     device, compute_type = choose_device(force_cpu)
     try:
-        segments, language = _run(media_path, model_name, device, compute_type, duration, progress)
+        segments, language = _run_with_coverage_check(
+            media_path, model_name, device, compute_type, duration, progress
+        )
         return segments, language, device
     except RuntimeError as error:
         message = str(error).lower()
@@ -59,5 +103,7 @@ def transcribe_audio(
             raise
         if progress:
             progress("GPU libraries unavailable; retrying with CPU", None)
-        segments, language = _run(media_path, model_name, "cpu", "int8", duration, progress)
+        segments, language = _run_with_coverage_check(
+            media_path, model_name, "cpu", "int8", duration, progress
+        )
         return segments, language, "cpu-fallback"

@@ -95,6 +95,7 @@ def run_pipeline(
             raw_dir,
             effective_cookies,
             lambda message, ratio: progress("audio_download", 18 + int((ratio or 0) * 12), message),
+            expected_duration=video.duration,
         )
         progress("transcription", 31, "Transcribing audio with automatic language detection")
         segments, language, device = transcribe_audio(

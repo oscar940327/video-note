@@ -6,6 +6,12 @@ single response so the transcript is not processed twice.
 
 Rules:
 - Preserve the depth of the source. Do not shorten the note merely to be concise; use as much detail as is useful.
+- Allocate detail by teaching importance, not by how many transcript minutes a topic occupies. The main concept and
+  its mechanics must remain dominant; repository layout, filenames, environment variables, and setup instructions
+  are supporting implementation details unless the video itself is primarily a setup tutorial.
+- For architecture or agent-pattern videos, explicitly capture when supported: the relationship to earlier patterns,
+  state and memory, evaluation criteria, retry loop, stopping condition or maximum trials, prompts, failure handling,
+  and the complete execution flow. Do not replace these mechanics with a long inventory of project files.
 - Do not emit disabled, redundant, or empty sections.
 - Include exactly one H1 and valid YAML Frontmatter with title, source, platform, source_language, note_language,
   created, and tags.
@@ -22,4 +28,5 @@ Rules:
 - Use Obsidian Wikilinks for clear technical concepts without excessive linking or synonym duplicates.
 - Never add a general review section, issue checklist, or already-resolved warning list.
 - Before returning, silently check completeness, transcript support, technical terms, Markdown structure, YAML,
-  heading hierarchy, code fences, and empty sections. Apply every safe correction directly.
+  heading hierarchy, code fences, empty sections, topic balance, and whether every named control mechanism or prompt
+  in the transcript was explained. Apply every safe correction directly.

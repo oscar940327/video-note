@@ -13,3 +13,8 @@ Return three kinds of actionable results:
 Prefer a safe edit over a critical rewrite. Return at most three critical sections. Do not return Markdown formatting
 issues that Python can determine, including YAML presence, heading levels, empty headings, duplicate headings, code
 fences, or Mermaid fences. Do not return supported claims or a long review report. Never rewrite the whole document.
+
+Also review pedagogical balance. For an architecture or agent-pattern video, flag a critical section when the note
+substantially emphasizes repository layout or model configuration while omitting transcript-supported core mechanics
+such as evaluation, memory, retry, maximum trials, stopping conditions, prompts, failure handling, or the end-to-end
+loop. Do not demand any mechanism that is absent from the transcript.

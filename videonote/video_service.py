@@ -6,6 +6,7 @@ import time
 from typing import Callable
 from urllib.parse import urlsplit
 
+import av
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
@@ -91,6 +92,40 @@ def ydl_options(cookies_from_browser: str | None = None) -> dict:
     return options
 
 
+def audio_packet_duration(media_path: Path) -> float:
+    """Return the last decodable audio packet timestamp instead of trusting container metadata."""
+    try:
+        with av.open(str(media_path)) as container:
+            stream = next((item for item in container.streams if item.type == "audio"), None)
+            if stream is None:
+                raise VideoDownloadError("The downloaded media does not contain an audio stream.")
+            last_end = 0.0
+            for packet in container.demux(stream):
+                if packet.pts is None:
+                    continue
+                start = float(packet.pts * stream.time_base)
+                packet_duration = float((packet.duration or 0) * stream.time_base)
+                last_end = max(last_end, start + packet_duration)
+    except (OSError, ValueError, av.error.FFmpegError) as error:
+        raise VideoDownloadError(f"The downloaded audio cannot be inspected: {error}") from error
+    if last_end <= 0:
+        raise VideoDownloadError("The downloaded audio contains no decodable audio packets.")
+    return last_end
+
+
+def audio_is_complete(media_path: Path, expected_duration: float | None, minimum_ratio: float = 0.9) -> tuple[bool, float]:
+    packet_duration = audio_packet_duration(media_path)
+    if not expected_duration or expected_duration <= 0:
+        return True, packet_duration
+    return packet_duration / expected_duration >= minimum_ratio, packet_duration
+
+
+def _remove_audio_downloads(destination: Path) -> None:
+    for candidate in destination.glob("audio.*"):
+        if candidate.is_file():
+            candidate.unlink(missing_ok=True)
+
+
 def get_video_info(url: str, cookies_from_browser: str | None = None) -> tuple[VideoInfo, dict]:
     url = normalize_video_url(url)
     try:
@@ -126,6 +161,7 @@ def download_audio(
     destination: Path,
     cookies_from_browser: str | None = None,
     progress: ProgressCallback | None = None,
+    expected_duration: float | None = None,
 ) -> Path:
     url = normalize_video_url(url)
     destination.mkdir(parents=True, exist_ok=True)
@@ -156,26 +192,48 @@ def download_audio(
         "logger": ProgressLogger(),
         "quiet": False,
     })
-    last_error: DownloadError | None = None
-    for attempt in range(2):
+    last_error: Exception | None = None
+    for attempt in range(3):
         try:
             with YoutubeDL(options) as ydl:
                 info = ydl.extract_info(url, download=True)
                 prepared = Path(ydl.prepare_filename(info))
-            break
         except DownloadError as error:
             last_error = error
             rate_limited = "HTTP Error 514" in str(error) or "Frequency Capped" in str(error)
-            if not rate_limited or attempt == 1:
+            if not rate_limited or attempt == 2:
                 raise _friendly_download_error(error, cookies_from_browser) from error
             if progress:
                 progress("Bilibili rate limit detected; retrying once in 8 seconds", None)
             time.sleep(8)
-    else:
-        raise _friendly_download_error(last_error or RuntimeError("Audio download failed"), cookies_from_browser)
-    if prepared.exists():
-        return prepared
-    candidates = sorted(destination.glob("audio.*"), key=lambda item: item.stat().st_mtime, reverse=True)
-    if not candidates:
-        raise FileNotFoundError("Audio download completed but the file could not be found.")
-    return candidates[0]
+            continue
+
+        candidates = [prepared] if prepared.exists() else sorted(
+            destination.glob("audio.*"), key=lambda item: item.stat().st_mtime, reverse=True
+        )
+        if not candidates:
+            last_error = FileNotFoundError("Audio download completed but the file could not be found.")
+        else:
+            selected = candidates[0]
+            try:
+                complete, packet_duration = audio_is_complete(selected, expected_duration)
+            except VideoDownloadError as error:
+                last_error = error
+            else:
+                if complete:
+                    return selected
+                last_error = VideoDownloadError(
+                    f"Downloaded audio is incomplete: decodable packets end at {packet_duration:.1f}s "
+                    f"but the video duration is {expected_duration:.1f}s."
+                )
+
+        if attempt < 2:
+            if progress:
+                progress("Downloaded audio is incomplete; starting a clean download", None)
+            _remove_audio_downloads(destination)
+            options["continuedl"] = False
+            options["overwrites"] = True
+
+    raise VideoDownloadError(
+        f"Audio remained incomplete after clean download retries. {last_error or ''}".strip()
+    )

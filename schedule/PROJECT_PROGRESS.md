@@ -161,3 +161,16 @@ Obsidian／Quartz 階段已開始實作：`note-garden/content` 設為公開 Vau
 - [x] `.env.example`、README 與 `/api/health` 已反映四種模型角色。
 - [x] 自動化驗證：27 passed；僅保留既有 FastAPI/httpx2 棄用警告。
 - [x] Qwen／DeepSeek 結構化輔助工作明確關閉 reasoning，避免輸出額度被內部推理耗盡而回傳空內容；Vault classify 真實 API 重測成功。
+
+## 2026-07-15：音訊與逐字稿完整度保護
+
+- [x] 發現 BV1fSV26aEMQ 原 job 的影片長 1597.5 秒，但 M4A 可解碼封包只到 140.4 秒，Whisper 逐字稿只到 137.5 秒。
+- [x] 下載完成後不再相信容器宣告時長，改以最後可解碼音訊封包與影片 metadata 比對。
+- [x] 可解碼音訊低於影片時長 90% 時，清除該 job 的 `audio.*` 並停用續傳做全新下載，最多三次。
+- [x] Whisper 完成後檢查最後 segment 覆蓋率；長影片低於 65% 且缺少超過兩分鐘時，自動關閉 VAD 重跑。
+- [x] 無 VAD 重跑仍不足時直接中止，不允許截斷逐字稿進入 LLM 生成。
+- [x] 架構型影片 prompt 改為優先整理核心機制、Evaluation、Memory、Retry、停止條件、最大嘗試次數與 Prompt，專案檔案結構降為輔助資訊。
+- [x] DeepSeek reviewer 新增概念／實作比例與架構核心遺漏檢查。
+- [x] 真實乾淨下載驗證：音訊封包到 1597.5128 秒，完整度通過。
+- [x] 真實 Whisper large-v3 CUDA 驗證：766 segments、最後時間戳 1596.73 秒、覆蓋率 99.95%。
+- [x] 自動化測試：31 passed；僅保留既有 FastAPI/httpx2 棄用警告。
