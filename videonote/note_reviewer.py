@@ -60,6 +60,7 @@ def review_note(client: OpenRouterClient, markdown: str, transcript_context: str
         input_text=f"NOTE\n{markdown}\n\nTRANSCRIPT\n{transcript_context}",
         max_output_tokens=6000,
         model=client.settings.review_model,
+        reasoning_enabled=False,
     )
 
 

@@ -5,8 +5,10 @@ from videonote.vault_service import classify_note, save_note
 class FakeClient:
     def __init__(self, result):
         self.result = result
+        self.request = None
 
     def structured(self, **kwargs):
+        self.request = kwargs
         return self.result
 
 
@@ -21,16 +23,19 @@ def make_settings(tmp_path):
 def test_classifier_prefers_existing_folder(tmp_path):
     settings = make_settings(tmp_path)
     (settings.vault_path / "AI Agents").mkdir(parents=True)
+    client = FakeClient({
+        "action": "use_existing", "folder": "ai agents", "confidence": 0.95,
+        "reason": "Agent topic",
+    })
     result = classify_note(
         "# Plan and Execute\n\nAgent architecture.",
-        FakeClient({
-            "action": "use_existing", "folder": "ai agents", "confidence": 0.95,
-            "reason": "Agent topic",
-        }),
+        client,
         settings,
     )
     assert result["folder"] == "AI Agents"
     assert result["filename"] == "Plan and Execute.md"
+    assert client.request["model"] == "qwen/qwen3.5-9b"
+    assert client.request["reasoning_enabled"] is False
 
 
 def test_low_confidence_uses_inbox_and_saves_safely(tmp_path):

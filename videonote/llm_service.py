@@ -54,6 +54,7 @@ class OpenRouterClient:
         input_text: str,
         max_output_tokens: int = 12000,
         model: str | None = None,
+        reasoning_enabled: bool | None = None,
     ) -> dict[str, Any]:
         if not self.settings.openrouter_api_key:
             raise LLMConfigurationError(
@@ -77,6 +78,8 @@ class OpenRouterClient:
             },
             "provider": {"require_parameters": True, "allow_fallbacks": True},
         }
+        if reasoning_enabled is not None:
+            payload["reasoning"] = {"enabled": reasoning_enabled}
         headers = {
             "Authorization": f"Bearer {self.settings.openrouter_api_key}",
             "Content-Type": "application/json",
@@ -134,6 +137,7 @@ def chunks_as_context(
             input_text=f"Time range: {timestamp(chunk.start)}–{timestamp(chunk.end)}\n\n{chunk.text}",
             max_output_tokens=1800,
             model=client.settings.context_model,
+            reasoning_enabled=False,
         )
         points = "\n".join(f"- {item}" for item in result["key_points"])
         summaries.append(

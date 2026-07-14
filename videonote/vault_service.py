@@ -74,6 +74,7 @@ def classify_note(
         ),
         max_output_tokens=500,
         model=app_settings.classification_model,
+        reasoning_enabled=False,
     )
     confidence = float(result["confidence"])
     existing = {name.casefold(): name for name in folders}

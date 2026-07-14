@@ -160,3 +160,4 @@ Obsidian／Quartz 階段已開始實作：`note-garden/content` 設為公開 Vau
 - [x] Vault 分類改用 Qwen3.5 9B，且輸入上限由 30,000 字元縮至 8,000 字元。
 - [x] `.env.example`、README 與 `/api/health` 已反映四種模型角色。
 - [x] 自動化驗證：27 passed；僅保留既有 FastAPI/httpx2 棄用警告。
+- [x] Qwen／DeepSeek 結構化輔助工作明確關閉 reasoning，避免輸出額度被內部推理耗盡而回傳空內容；Vault classify 真實 API 重測成功。
