@@ -16,7 +16,7 @@ from videonote.llm_service import (
 from videonote.note_generator import regenerate_section
 from videonote.note_validator import format_validation
 from videonote.pipeline import PipelineOptions
-from videonote.vault_service import VaultError, classify_note, publish_note, save_note
+from videonote.vault_service import VaultError, classify_note, get_vault_folders, publish_note, save_note
 
 
 app = FastAPI(title="VideoNote Forge API", version="0.1.0")
@@ -137,6 +137,14 @@ def classify_vault_note(request: VaultClassifyRequest) -> dict:
     try:
         return classify_note(request.markdown)
     except (VaultError, LLMConfigurationError, LLMResponseError) as error:
+        raise HTTPException(503, str(error)) from error
+
+
+@app.get("/api/vault/folders")
+def vault_folders() -> dict:
+    try:
+        return get_vault_folders()
+    except (VaultError, OSError) as error:
         raise HTTPException(503, str(error)) from error
 
 

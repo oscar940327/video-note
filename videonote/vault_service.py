@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -41,6 +42,12 @@ def list_topic_folders(root: Path) -> list[str]:
         item.name for item in root.iterdir()
         if item.is_dir() and item.name.lower() not in ignored and not item.name.startswith(".")
     )
+
+
+def get_vault_folders(app_settings: Settings = settings) -> dict[str, Any]:
+    root = require_vault(app_settings)
+    folders = list_topic_folders(root)
+    return {"folders": folders, "default": "Inbox" if "Inbox" in folders else (folders[0] if folders else None)}
 
 
 def _clean_folder(value: str) -> str:
@@ -106,6 +113,25 @@ def _safe_target(root: Path, folder: str, filename: str) -> Path:
     return target
 
 
+def _ensure_category_index(root: Path, folder: str) -> Path | None:
+    clean_folder = _clean_folder(folder)
+    index_path = (root / clean_folder / "index.md").resolve()
+    try:
+        index_path.relative_to(root)
+    except ValueError as error:
+        raise VaultError("The category index path escapes the configured Vault.") from error
+    if index_path.exists():
+        return None
+    title = json.dumps(clean_folder, ensure_ascii=False)
+    description = json.dumps(f"{clean_folder} 分類的 VideoNote 學習筆記。", ensure_ascii=False)
+    atomic_write_text(
+        index_path,
+        f"---\ntitle: {title}\ndescription: {description}\ntags: [videonote]\n---\n\n"
+        f"# {clean_folder}\n\n收錄由 VideoNote 整理並經使用者確認分類的學習筆記。\n",
+    )
+    return index_path
+
+
 def save_note(
     markdown: str,
     folder: str | None = None,
@@ -115,28 +141,36 @@ def save_note(
 ) -> dict[str, Any]:
     root = require_vault(app_settings)
     classification = classify_note(markdown, client, app_settings) if not folder and not relative_path else None
+    source: Path | None = None
     if relative_path:
-        candidate = (root / relative_path).resolve()
+        source = (root / relative_path).resolve()
         try:
-            candidate.relative_to(root)
+            source.relative_to(root)
         except ValueError as error:
             raise VaultError("The target path escapes the configured Vault.") from error
-        if candidate.suffix.lower() != ".md":
+        if source.suffix.lower() != ".md":
             raise VaultError("Vault notes must use the .md extension.")
-        target = candidate
+        target = _safe_target(root, folder, source.name) if folder else source
     else:
         selected_folder = folder or str(classification["folder"])
         target = _safe_target(root, selected_folder, f"{_title_from_markdown(markdown)}.md")
-        if target.exists() and target.read_text(encoding="utf-8") != markdown:
-            stem, counter = target.stem, 2
-            while target.exists():
-                target = target.with_name(f"{stem}-{counter}.md")
-                counter += 1
+    if target != source and target.exists() and target.read_text(encoding="utf-8") != markdown:
+        stem, counter = target.stem, 2
+        while target.exists():
+            target = target.with_name(f"{stem}-{counter}.md")
+            counter += 1
     atomic_write_text(target, markdown.rstrip() + "\n")
+    created_index = _ensure_category_index(root, target.parent.name)
+    moved_from: str | None = None
+    if source and source != target and source.exists():
+        moved_from = source.relative_to(root).as_posix()
+        source.unlink()
     return {
         "saved": True,
         "relative_path": target.relative_to(root).as_posix(),
         "absolute_path": str(target),
+        "moved_from": moved_from,
+        "created_category_index": created_index.relative_to(root).as_posix() if created_index else None,
         "classification": classification,
     }
 
@@ -166,7 +200,14 @@ def publish_note(
         raise VaultError("The Vault is not inside a Git repository.")
     repo = Path(top)
     path_in_repo = Path(saved["absolute_path"]).relative_to(repo).as_posix()
-    _git(["add", "--", path_in_repo], repo)
+    paths_to_stage = [path_in_repo]
+    if saved.get("moved_from"):
+        old_path = (root / str(saved["moved_from"])).resolve().relative_to(repo).as_posix()
+        paths_to_stage.append(old_path)
+    if saved.get("created_category_index"):
+        index_path = (root / str(saved["created_category_index"])).resolve().relative_to(repo).as_posix()
+        paths_to_stage.append(index_path)
+    _git(["add", "--", *paths_to_stage], repo)
     diff = _git(["diff", "--cached", "--quiet"], repo, check=False)
     committed = diff.returncode != 0
     if committed:

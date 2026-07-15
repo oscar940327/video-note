@@ -174,3 +174,15 @@ Obsidian／Quartz 階段已開始實作：`note-garden/content` 設為公開 Vau
 - [x] 真實乾淨下載驗證：音訊封包到 1597.5128 秒，完整度通過。
 - [x] 真實 Whisper large-v3 CUDA 驗證：766 segments、最後時間戳 1596.73 秒、覆蓋率 99.95%。
 - [x] 自動化測試：31 passed；僅保留既有 FastAPI/httpx2 棄用警告。
+
+## 2026-07-15：可人工調整 Vault 分類
+
+- [x] 新增 `GET /api/vault/folders`，直接列出 note-garden/content 的第一層公開分類。
+- [x] LLM 分類改為建議值，最終儲存分類由使用者在 VideoNote 前端決定。
+- [x] 前端支援選擇既有分類或輸入新分類，並顯示信心分數與分類理由。
+- [x] 已儲存筆記改分類時，先原子寫入新位置再刪除舊檔，避免遺失或重複。
+- [x] 發布搬移時 Git 同時 stage 新路徑、舊路徑刪除與新分類 index。
+- [x] 新分類第一次使用時自動建立 Quartz `index.md`。
+- [x] 分類卡、新分類輸入框、圖示與狀態訊息加入進場、展開與脈衝動畫，支援 reduced motion。
+- [x] note-garden 使用說明與 Inbox 首頁已補充分類調整流程。
+- [x] 驗證：34 pytest passed、JavaScript syntax passed、Vault folders API 200、Quartz build 成功（8 inputs／99 outputs）。

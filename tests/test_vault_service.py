@@ -1,5 +1,5 @@
 from videonote.config import Settings
-from videonote.vault_service import classify_note, save_note
+from videonote.vault_service import classify_note, get_vault_folders, save_note
 
 
 class FakeClient:
@@ -58,3 +58,32 @@ def test_existing_note_is_not_overwritten_with_different_content(tmp_path):
     second = save_note("# Note\n\nTwo", folder="RAG", app_settings=settings)
     assert first["relative_path"] == "RAG/Note.md"
     assert second["relative_path"] == "RAG/Note-2.md"
+
+
+def test_vault_folders_lists_real_topic_directories(tmp_path):
+    settings = make_settings(tmp_path)
+    for folder in ("Inbox", "RAG", ".obsidian"):
+        (settings.vault_path / folder).mkdir(parents=True)
+
+    result = get_vault_folders(settings)
+
+    assert result == {"folders": ["Inbox", "RAG"], "default": "Inbox"}
+
+
+def test_existing_note_can_move_to_a_different_category(tmp_path):
+    settings = make_settings(tmp_path)
+    first = save_note("# Reflection\n\nDraft", folder="Inbox", app_settings=settings)
+
+    moved = save_note(
+        "# Reflection\n\nUpdated",
+        folder="AI Agents",
+        relative_path=first["relative_path"],
+        app_settings=settings,
+    )
+
+    assert moved["relative_path"] == "AI Agents/Reflection.md"
+    assert moved["moved_from"] == "Inbox/Reflection.md"
+    assert not (settings.vault_path / "Inbox" / "Reflection.md").exists()
+    assert (settings.vault_path / "AI Agents" / "Reflection.md").read_text(encoding="utf-8") == "# Reflection\n\nUpdated\n"
+    assert moved["created_category_index"] == "AI Agents/index.md"
+    assert (settings.vault_path / "AI Agents" / "index.md").exists()
